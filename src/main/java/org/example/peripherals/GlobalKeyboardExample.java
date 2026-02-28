@@ -10,6 +10,11 @@ public class GlobalKeyboardExample {
 
     private static boolean run = true;
 
+    /**
+     * Starts the global keyboard hook and listens for keyboard events.
+     * Press the [escape] key to shutdown the hook.
+     * This method is invokable from other classes.
+     */
     public static void startGlobalKeyboardHook() {
         // Might throw a UnsatisfiedLinkError if the native library fails to load or a RuntimeException if hooking fails
         GlobalKeyboardHook keyboardHook = new GlobalKeyboardHook(true); // Use false here to switch to hook instead of raw input
@@ -47,3 +52,5 @@ public class GlobalKeyboardExample {
         }
     }
 }
+
+

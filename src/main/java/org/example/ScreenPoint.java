@@ -6,7 +6,8 @@ public enum ScreenPoint {
     SHOP_BUTTON(766, 159),
     MY_GARDEN(963, 163),
     SELL_BUTTON(1172, 165),
-    CENTER_SCREEN(960, 540);
+    CENTER_SCREEN(960, 540),
+    WEATHER_CONDITIONS(1400, 810);
 
     private final int x;
     private final int y;
