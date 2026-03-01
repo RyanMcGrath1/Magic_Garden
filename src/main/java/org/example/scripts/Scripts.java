@@ -1,7 +1,7 @@
 package org.example.scripts;
 
 import java.awt.*;
-import org.example.ScreenPoint;
+import org.example.elements.ScreenPoint;
 import org.example.EdgeActivator;
 import org.example.ScreenSample;
 
