@@ -20,13 +20,6 @@ public class MagicGardenOpener {
     public static final String MAGIC_GARDEN_URL = "https://magicgarden.gg/r/QP9B";
 
     /**
-     * Port for Chrome remote debugging (CDP). Start Chrome with {@code --remote-debugging-port=9222} so
-     * {@link org.example.browser.shop.ShopListCdpReader} can read DOM text from the Magic Garden tab.
-     * Example (Windows): {@code "C:\...\chrome.exe" --remote-debugging-port=9222}
-     */
-    public static final int CHROME_REMOTE_DEBUGGING_PORT = 9222;
-
-    /**
      * Outer window size aimed at typical 13-inch laptop viewports (e.g. 1280x800 class panels);
      * clamped to the current monitor work area so it always fits above the taskbar.
      */
