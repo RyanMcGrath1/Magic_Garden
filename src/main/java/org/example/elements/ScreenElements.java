@@ -5,9 +5,6 @@ public enum ScreenElements {
     ANCHOR_POSITION(new RGBColor(191, 126, 28)),
     DAWN_ANCHOR_POSITION(new RGBColor(153, 101, 65));
 
-    //For filters the plan would be to add together filter with above item to derive seasonal variation
-//    SUSPECTED_DAWN_FILTER(new RGBColor(-38, -25, 37));
-
     private final RGBColor expectedColor;
 
     ScreenElements(RGBColor expectedColor) {

@@ -1,0 +1,32 @@
+{
+  "terminal.integrated.minimumContrastRatio": 4.5,
+  "terminal.integrated.fontSize": 14,
+  "terminal.integrated.fontFamily": "Cascadia Code, Cascadia Mono, Consolas, 'Courier New', monospace",
+  "terminal.integrated.smoothScrolling": true,
+  "workbench.colorCustomizations": {
+    "terminal.background": "#1a1b26",
+    "terminal.foreground": "#c0caf5",
+    "terminal.border": "#292e42",
+    "terminalCursor.background": "#1a1b26",
+    "terminalCursor.foreground": "#c0caf5",
+    "terminal.selectionBackground": "#33467c88",
+    "terminal.inactiveSelectionBackground": "#2a315866",
+    "terminal.ansiBlack": "#414868",
+    "terminal.ansiRed": "#f7768e",
+    "terminal.ansiGreen": "#9ece6a",
+    "terminal.ansiYellow": "#e0af68",
+    "terminal.ansiBlue": "#7aa2f7",
+    "terminal.ansiMagenta": "#bb9af7",
+    "terminal.ansiCyan": "#7dcfff",
+    "terminal.ansiWhite": "#a9b1d6",
+    "terminal.ansiBrightBlack": "#565f89",
+    "terminal.ansiBrightRed": "#ff7a93",
+    "terminal.ansiBrightGreen": "#b9f27c",
+    "terminal.ansiBrightYellow": "#ff9e64",
+    "terminal.ansiBrightBlue": "#8db0ff",
+    "terminal.ansiBrightMagenta": "#cfc9ff",
+    "terminal.ansiBrightCyan": "#9ae5ff",
+    "terminal.ansiBrightWhite": "#c0caf5"
+  },
+  "java.debug.settings.onBuildFailureProceed": true
+}
