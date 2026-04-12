@@ -28,5 +28,6 @@
     "terminal.ansiBrightCyan": "#9ae5ff",
     "terminal.ansiBrightWhite": "#c0caf5"
   },
-  "java.debug.settings.onBuildFailureProceed": true
+  "java.debug.settings.onBuildFailureProceed": true,
+  "java.configuration.updateBuildConfiguration": "interactive"
 }

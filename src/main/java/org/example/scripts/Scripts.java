@@ -3,8 +3,12 @@ package org.example.scripts;
 import java.awt.AWTException;
 import java.awt.Robot;
 import java.awt.event.KeyEvent;
+import java.util.List;
 import org.example.MagicGardenOpener;
 import org.example.OsInfo;
+import org.example.browser.shop.ShopListSelector;
+import org.example.browser.shop.ShopListTextExtractor;
+import org.example.browser.util.ItemsToBuy;
 
 public class Scripts {
     private static Scripts instance;
@@ -38,10 +42,13 @@ public class Scripts {
         throw new IllegalStateException("unreachable");
     }
 
-    public void begin() {
+    public void begin(ItemsToBuy[] itemsToBuy) {
         int os = checkForOperatingSystem();
         if (os == 1) {
-            System.out.println("Open Magic Garden in Google Chrome first, then leave that tab active:");
+            System.out.println("Chrome must be running with remote debugging on port "
+                    + MagicGardenOpener.CHROME_REMOTE_DEBUGGING_PORT
+                    + " (see chrome-with-debugging.bat and README).");
+            System.out.println("In that Chrome window, open the game and leave the tab active:");
             System.out.println("  " + MagicGardenOpener.MAGIC_GARDEN_URL);
             System.out.println("Beginning startup sequence — locating the Chrome window...");
             try {
@@ -55,6 +62,16 @@ public class Scripts {
                 System.out.println("Google Chrome is ready. Waiting 5 seconds before continuing...");
                 Thread.sleep(5000);
                 clickShopButton();
+                Thread.sleep(1500);
+                try {
+                    List<String> shopLines = ShopListTextExtractor.readScrollableListDefaultPort();
+                    System.out.println("Shop list (size: " + shopLines.size() + ") - Beginning interfacing with game...");
+                    ShopListSelector.beginInterfacingWithGame(shopLines);
+
+                } catch (Exception ex) {
+                    System.err.println("Could not read shop list via CDP: " + ex.getMessage());
+                    ex.printStackTrace(System.err);
+                }
             } catch (Exception e) {
                 if (e instanceof InterruptedException) {
                     Thread.currentThread().interrupt();

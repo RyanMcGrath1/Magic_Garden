@@ -4,6 +4,9 @@ target/
 !**/src/test/**/target/
 .kotlin
 
+# Chrome remote-debugging profile (chrome-with-debugging.bat)
+.chrome-debug-profile/
+
 ### IntelliJ IDEA ###
 .idea/modules.xml
 .idea/jarRepositories.xml
