@@ -10,10 +10,7 @@ public final class ShopListTextExtractor {
     }
 
     public static List<String> readScrollableListDefaultPort() throws ChromeServiceException {
-        if (ShopListDomConfig.hasShopKeywords()) {
-            return ShopListCdpReader.readScrollableShopListByKeywordsDefault(
-                    MagicGardenOpener.CHROME_REMOTE_DEBUGGING_PORT);
-        }
+        
         return ShopListCdpReader.readScrollableShopListLinesDefaultSelectors(
                 MagicGardenOpener.CHROME_REMOTE_DEBUGGING_PORT);
     }

@@ -11,7 +11,10 @@ public enum ItemsToBuy {
     The purpose of this enum is to make it easy to add new items to the list of items to buy.
     */
     CARROT("Carrot Seed"),
-
+    SUNFLOWER("Sunflower Seed"),
+    STARWEAVER("Starweaver Pod"),
+    DAWNBINDER("Dawnbinder Pod"),
+    MOONBINDER("Moonbinder Pod")
     ;
 
     private final String value;

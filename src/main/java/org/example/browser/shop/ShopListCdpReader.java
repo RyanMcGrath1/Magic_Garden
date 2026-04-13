@@ -59,12 +59,10 @@ public final class ShopListCdpReader {
     private ShopListCdpReader() {
     }
 
-    public static List<String> readScrollableShopListLines(
-            int debuggingPort,
-            String[] listContainerSelectors,
-            int maxSteps,
-            int stableRoundsWithNoNewLines)
-            throws ChromeServiceException {
+    /**
+     * CDP preflight, {@link ChromeServiceImpl} for {@code debuggingPort}, and the Magic Garden {@link ChromeTab}.
+     */
+    private static MagicGardenChromeConnection connectToMagicGardenChrome(int debuggingPort) {
         String preflightFailure = ChromeDebugPreflight.checkOrExplainFailure(debuggingPort);
         if (preflightFailure != null) {
             throw new IllegalStateException(
@@ -78,6 +76,28 @@ public final class ShopListCdpReader {
                     "No Magic Garden page tab (type page, URL containing 'magicgarden') with a debugger URL. Page tabs: "
                             + summarizePageTabUrls(tabs, 12, 140));
         }
+        return new MagicGardenChromeConnection(chromeService, tab);
+    }
+
+    private static final class MagicGardenChromeConnection {
+        final ChromeServiceImpl chromeService;
+        final ChromeTab tab;
+
+        private MagicGardenChromeConnection(ChromeServiceImpl chromeService, ChromeTab tab) {
+            this.chromeService = chromeService;
+            this.tab = tab;
+        }
+    }
+
+    public static List<String> readScrollableShopListLines(
+            int debuggingPort,
+            String[] listContainerSelectors,
+            int maxSteps,
+            int stableRoundsWithNoNewLines)
+            throws ChromeServiceException {
+        MagicGardenChromeConnection conn = connectToMagicGardenChrome(debuggingPort);
+        ChromeServiceImpl chromeService = conn.chromeService;
+        ChromeTab tab = conn.tab;
         String script = buildScrollStepScript(listContainerSelectors);
         LinkedHashSet<String> accumulated = new LinkedHashSet<>();
         int noNewStreak = 0;
@@ -131,19 +151,9 @@ public final class ShopListCdpReader {
         if (kw.length == 0) {
             throw new IllegalStateException("keywords must be non-empty for keyword mode");
         }
-        String preflightFailure = ChromeDebugPreflight.checkOrExplainFailure(debuggingPort);
-        if (preflightFailure != null) {
-            throw new IllegalStateException(
-                    ChromeDebugPreflight.unreachableMessage(debuggingPort) + preflightFailure);
-        }
-        ChromeServiceImpl chromeService = new ChromeServiceImpl(debuggingPort);
-        List<ChromeTab> tabs = chromeService.getTabs();
-        ChromeTab tab = findMagicGardenTab(tabs);
-        if (tab == null) {
-            throw new IllegalStateException(
-                    "No Magic Garden page tab (type page, URL containing 'magicgarden') with a debugger URL. Page tabs: "
-                            + summarizePageTabUrls(tabs, 12, 140));
-        }
+        MagicGardenChromeConnection conn = connectToMagicGardenChrome(debuggingPort);
+        ChromeServiceImpl chromeService = conn.chromeService;
+        ChromeTab tab = conn.tab;
         String script = buildKeywordScrollScriptOrThrow(kw, ancestorMaxHops, maxElementsPerKeywordPerStep);
         LinkedHashSet<String> accumulated = new LinkedHashSet<>();
         int noNewStreak = 0;

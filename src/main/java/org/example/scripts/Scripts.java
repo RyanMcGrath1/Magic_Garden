@@ -66,7 +66,7 @@ public class Scripts {
                 try {
                     List<String> shopLines = ShopListTextExtractor.readScrollableListDefaultPort();
                     System.out.println("Shop list (size: " + shopLines.size() + ") - Beginning interfacing with game...");
-                    ShopListSelector.beginInterfacingWithGame(shopLines);
+                    ShopListSelector.beginInterfacingWithGame(shopLines, itemsToBuy);
 
                 } catch (Exception ex) {
                     System.err.println("Could not read shop list via CDP: " + ex.getMessage());
