@@ -21,11 +21,6 @@ public final class ShopListDomConfig {
     };
 
     /**
-     * Substrings to search for in the live page text. When non-empty, keyword/snippet mode is used (injected JS).
-     */
-    public static final String[] SHOP_KEYWORDS = {""};
-
-    /**
      * When walking up from a node that contains a keyword, stop at the first {@code div} or {@code section} within this
      * many parent hops; that element's {@code outerHTML} is captured.
      */
@@ -36,13 +31,5 @@ public final class ShopListDomConfig {
      */
     public static final int MAX_ELEMENTS_PER_KEYWORD_PER_STEP = 24;
 
-    private ShopListDomConfig() {
-    }
 
-    public static boolean hasShopKeywords() {
-        return Arrays.stream(SHOP_KEYWORDS)
-                .filter(s -> s != null)
-                .map(String::trim)
-                .anyMatch(s -> !s.isEmpty());
-    }
 }

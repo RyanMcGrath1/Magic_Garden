@@ -8,22 +8,17 @@ import com.github.kklisura.cdt.protocol.types.runtime.Evaluate;
 import com.github.kklisura.cdt.protocol.types.runtime.RemoteObject;
 import com.github.kklisura.cdt.services.ChromeDevToolsService;
 import com.github.kklisura.cdt.services.exceptions.ChromeServiceException;
-import com.github.kklisura.cdt.services.impl.ChromeServiceImpl;
-import com.github.kklisura.cdt.services.types.ChromeTab;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Locale;
-import java.util.Map;
 import java.util.Objects;
-import org.example.browser.ChromeDebugPreflight;
 
 /**
  * Reads shop content from the live Magic Garden tab via CDP {@code Runtime.evaluate}. Injected JavaScript returns
- * JSON; no HTML parser on the JVM. One {@link ChromeDevToolsService} is held for the entire scroll loop.
+ * JSON; no HTML parser on the JVM. Chrome session lifecycle is delegated to
+ * {@link ShopCdpSessionManager}.
  */
 public final class ShopListCdpReader {
 
@@ -59,34 +54,13 @@ public final class ShopListCdpReader {
     private ShopListCdpReader() {
     }
 
-    /**
-     * CDP preflight, {@link ChromeServiceImpl} for {@code debuggingPort}, and the Magic Garden {@link ChromeTab}.
-     */
-    private static MagicGardenChromeConnection connectToMagicGardenChrome(int debuggingPort) {
-        String preflightFailure = ChromeDebugPreflight.checkOrExplainFailure(debuggingPort);
-        if (preflightFailure != null) {
-            throw new IllegalStateException(
-                    ChromeDebugPreflight.unreachableMessage(debuggingPort) + preflightFailure);
-        }
-        ChromeServiceImpl chromeService = new ChromeServiceImpl(debuggingPort);
-        List<ChromeTab> tabs = chromeService.getTabs();
-        ChromeTab tab = findMagicGardenTab(tabs);
-        if (tab == null) {
-            throw new IllegalStateException(
-                    "No Magic Garden page tab (type page, URL containing 'magicgarden') with a debugger URL. Page tabs: "
-                            + summarizePageTabUrls(tabs, 12, 140));
-        }
-        return new MagicGardenChromeConnection(chromeService, tab);
+    public static ChromeDevToolsService getSharedRuntimeEnabledDevToolsSession(int debuggingPort)
+            throws ChromeServiceException {
+        return ShopCdpSessionManager.getSharedRuntimeEnabledDevToolsSession(debuggingPort);
     }
 
-    private static final class MagicGardenChromeConnection {
-        final ChromeServiceImpl chromeService;
-        final ChromeTab tab;
-
-        private MagicGardenChromeConnection(ChromeServiceImpl chromeService, ChromeTab tab) {
-            this.chromeService = chromeService;
-            this.tab = tab;
-        }
+    public static void closeSharedCdpSession() {
+        ShopCdpSessionManager.closeSharedCdpSession();
     }
 
     public static List<String> readScrollableShopListLines(
@@ -95,42 +69,51 @@ public final class ShopListCdpReader {
             int maxSteps,
             int stableRoundsWithNoNewLines)
             throws ChromeServiceException {
-        MagicGardenChromeConnection conn = connectToMagicGardenChrome(debuggingPort);
-        ChromeServiceImpl chromeService = conn.chromeService;
-        ChromeTab tab = conn.tab;
+        ChromeDevToolsService dts = getSharedRuntimeEnabledDevToolsSession(debuggingPort);
         String script = buildScrollStepScript(listContainerSelectors);
         LinkedHashSet<String> accumulated = new LinkedHashSet<>();
         int noNewStreak = 0;
-        try (ChromeDevToolsService dts = chromeService.createDevToolsService(tab)) {
-            dts.getRuntime().enable();
-            for (int step = 0; step < maxSteps; step++) {
-                Evaluate ev = dts.getRuntime().evaluate(script);
-                String json = stringFromEvaluate(ev);
-                ScrollStepResult result = parseScrollStep(json);
-                if (result.error != null) {
-                    if (step == 0) {
-                        throw new IllegalStateException("Shop list script: " + result.error);
-                    }
-                    break;
+        for (int step = 0; step < maxSteps; step++) {
+            Evaluate ev = dts.getRuntime().evaluate(script);
+            String json = stringFromEvaluate(ev);
+            ScrollStepResult result = parseScrollStep(json);
+            if (result.error != null) {
+                if (step == 0) {
+                    throw new IllegalStateException("Shop list script: " + result.error);
                 }
-                int sizeBefore = accumulated.size();
-                for (String line : result.lines) {
-                    accumulated.add(line);
-                }
-                if (accumulated.size() == sizeBefore) {
-                    noNewStreak++;
-                } else {
-                    noNewStreak = 0;
-                }
-                if (noNewStreak >= stableRoundsWithNoNewLines) {
-                    break;
-                }
-                if (result.atEnd && accumulated.size() == sizeBefore) {
-                    break;
-                }
+                break;
+            }
+            int sizeBefore = accumulated.size();
+            for (String line : result.lines) {
+                accumulated.add(line);
+            }
+            if (accumulated.size() == sizeBefore) {
+                noNewStreak++;
+            } else {
+                noNewStreak = 0;
+            }
+            if (noNewStreak >= stableRoundsWithNoNewLines) {
+                break;
+            }
+            if (result.atEnd && accumulated.size() == sizeBefore) {
+                break;
             }
         }
         return new ArrayList<>(accumulated);
+    }
+
+    /**
+     * Finds a visible shop {@code button} matching {@code shopLine} / {@code itemLabel} and clicks it using the shared
+     * session.
+     */
+    public static boolean clickMatchingShopButtonSharedSession(
+            int debuggingPort, String[] listContainerSelectors, String shopLine, String itemLabel)
+            throws ChromeServiceException {
+        ChromeDevToolsService dts = getSharedRuntimeEnabledDevToolsSession(debuggingPort);
+        String script = buildClickMatchingShopButtonScript(listContainerSelectors, shopLine, itemLabel);
+        Evaluate ev = dts.getRuntime().evaluate(script);
+        String json = stringFromEvaluate(ev);
+        return parseClickResult(json);
     }
 
     public static List<String> readScrollableShopListLinesDefaultSelectors(int debuggingPort)
@@ -149,6 +132,61 @@ public final class ShopListCdpReader {
             return SCROLL_STEP_SCRIPT_PREFIX + json + SCROLL_STEP_SCRIPT_SUFFIX;
         } catch (JsonProcessingException e) {
             throw new IllegalStateException(e);
+        }
+    }
+
+    private static String buildClickMatchingShopButtonScript(String[] selectors, String shopLine, String itemLabel) {
+        try {
+            String selJson =
+                    MAPPER.writeValueAsString(
+                            selectors == null || selectors.length == 0
+                                    ? Collections.emptyList()
+                                    : Arrays.asList(selectors));
+            String lineJson = MAPPER.writeValueAsString(shopLine == null ? "" : shopLine);
+            String labelJson = MAPPER.writeValueAsString(itemLabel == null ? "" : itemLabel);
+            return "(function(){var selectors="
+                    + selJson
+                    + ";var targetLine="
+                    + lineJson
+                    + ";var targetLabel="
+                    + labelJson
+                    + ";function trimOnly(t){return (t||'').trim();}"
+                    + "function findScrollable(el){var e=el;while(e&&e!==document.body){var st=window.getComputedStyle(e);"
+                    + "if(e.scrollHeight>e.clientHeight+2&&/(auto|scroll|overlay)/.test(st.overflowY))return e;"
+                    + "e=e.parentElement;}return el;}"
+                    + "function visibleInContainer(el,c){var r=el.getBoundingClientRect(),cr=c.getBoundingClientRect();"
+                    + "return r.height>0&&r.width>0&&r.bottom>cr.top&&r.top<cr.bottom&&r.right>cr.left&&r.left<cr.right;}"
+                    + "function forEachButton(root,c,fn){var sel='button';var btns=root.querySelectorAll(sel);"
+                    + "for(var i=0;i<btns.length;i++){fn(btns[i]);}"
+                    + "var all=root.querySelectorAll('*');for(var j=0;j<all.length;j++){"
+                    + "if(all[j].shadowRoot){var inner=all[j].shadowRoot.querySelectorAll(sel);"
+                    + "for(var k=0;k<inner.length;k++){fn(inner[k]);}}}}"
+                    + "function tryClick(btn,c,wantL,wantB,mode){if(!visibleInContainer(btn,c))return false;"
+                    + "var raw=trimOnly((btn.innerText||btn.textContent||''));if(!raw)return false;"
+                    + "if(mode===1){if(!wantL||raw!==wantL)return false;}"
+                    + "else{if(!wantB||raw.indexOf(wantB)<0)return false;}"
+                    + "try{btn.scrollIntoView({block:'center',inline:'nearest'});btn.click();return true;}catch(e){return false;}}"
+                    + "var anchor=null;for(var si=0;si<selectors.length&&!anchor;si++){anchor=document.querySelector(selectors[si]);}"
+                    + "if(!anchor){anchor=document.body;}"
+                    + "if(!anchor){return JSON.stringify({ok:false});}"
+                    + "var container=findScrollable(anchor)||anchor;"
+                    + "var wantL=trimOnly(targetLine);var wantB=trimOnly(targetLabel);var clicked=false;"
+                    + "if(wantL){forEachButton(container,container,function(btn){if(clicked)return;"
+                    + "if(tryClick(btn,container,wantL,wantB,1))clicked=true;});}"
+                    + "if(!clicked&&wantB){forEachButton(container,container,function(btn){if(clicked)return;"
+                    + "if(tryClick(btn,container,wantL,wantB,2))clicked=true;});}"
+                    + "return JSON.stringify({ok:clicked});})()";
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
+    private static boolean parseClickResult(String json) {
+        try {
+            JsonNode root = MAPPER.readTree(json);
+            return root.path("ok").asBoolean(false);
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException("Invalid JSON from click shop button script", e);
         }
     }
 
@@ -183,63 +221,6 @@ public final class ShopListCdpReader {
             this.lines = lines;
             this.atEnd = atEnd;
         }
-    }
-
-    /**
-     * Top-level page tab whose URL contains {@code magicgarden} (excludes iframe/worker targets and extension pages).
-     */
-    static ChromeTab findMagicGardenTab(List<ChromeTab> tabs) {
-        for (ChromeTab t : tabs) {
-            if (!t.isPageType()) {
-                continue;
-            }
-            String u = t.getUrl();
-            if (u == null || t.getWebSocketDebuggerUrl() == null) {
-                continue;
-            }
-            String lower = u.toLowerCase(Locale.ROOT);
-            if (!lower.contains("magicgarden")) {
-                continue;
-            }
-            if (lower.startsWith("chrome-extension:")
-                    || lower.startsWith("devtools:")
-                    || lower.startsWith("chrome-devtools:")) {
-                continue;
-            }
-            return t;
-        }
-        return null;
-    }
-
-    private static String summarizePageTabUrls(List<ChromeTab> tabs, int maxEntries, int maxUrlLen) {
-        if (tabs == null || tabs.isEmpty()) {
-            return "(none)";
-        }
-        StringBuilder sb = new StringBuilder();
-        int n = 0;
-        for (ChromeTab t : tabs) {
-            if (!t.isPageType()) {
-                continue;
-            }
-            if (n >= maxEntries) {
-                sb.append(" | …");
-                break;
-            }
-            if (n > 0) {
-                sb.append(" | ");
-            }
-            String u = t.getUrl();
-            String show = u == null ? "(null)" : u;
-            if (show.length() > maxUrlLen) {
-                show = show.substring(0, maxUrlLen) + "…";
-            }
-            sb.append(show);
-            n++;
-        }
-        if (n == 0) {
-            return "(no page-type tabs)";
-        }
-        return sb.toString();
     }
 
     private static String stringFromEvaluate(Evaluate evaluate) {
