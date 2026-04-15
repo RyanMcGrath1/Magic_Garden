@@ -116,6 +116,18 @@ public final class ShopListCdpReader {
         return parseClickResult(json);
     }
 
+    /**
+     * Clicks a button directly using an exact CSS selector on the active page via the shared session.
+     */
+    public static boolean clickButtonBySelectorSharedSession(int debuggingPort, String cssSelector)
+            throws ChromeServiceException {
+        ChromeDevToolsService dts = getSharedRuntimeEnabledDevToolsSession(debuggingPort);
+        String script = buildClickButtonBySelectorScript(cssSelector);
+        Evaluate ev = dts.getRuntime().evaluate(script);
+        String json = stringFromEvaluate(ev);
+        return parseClickResult(json);
+    }
+
     public static List<String> readScrollableShopListLinesDefaultSelectors(int debuggingPort)
             throws ChromeServiceException {
         return readScrollableShopListLines(
@@ -156,6 +168,8 @@ public final class ShopListCdpReader {
                     + "e=e.parentElement;}return el;}"
                     + "function visibleInContainer(el,c){var r=el.getBoundingClientRect(),cr=c.getBoundingClientRect();"
                     + "return r.height>0&&r.width>0&&r.bottom>cr.top&&r.top<cr.bottom&&r.right>cr.left&&r.left<cr.right;}"
+                    + "function forEachRow(root,fn){var rows=root.children||[];"
+                    + "for(var i=0;i<rows.length;i++){if(rows[i]&&rows[i].nodeType===1){fn(rows[i]);}}}"
                     + "function forEachButton(root,c,fn){var sel='button';var btns=root.querySelectorAll(sel);"
                     + "for(var i=0;i<btns.length;i++){fn(btns[i]);}"
                     + "var all=root.querySelectorAll('*');for(var j=0;j<all.length;j++){"
@@ -171,11 +185,32 @@ public final class ShopListCdpReader {
                     + "if(!anchor){return JSON.stringify({ok:false});}"
                     + "var container=findScrollable(anchor)||anchor;"
                     + "var wantL=trimOnly(targetLine);var wantB=trimOnly(targetLabel);var clicked=false;"
+                    + "forEachRow(container,function(row){if(clicked)return;"
+                    + "if(!visibleInContainer(row,container))return;"
+                    + "var rowText=trimOnly((row.innerText||row.textContent||''));if(!rowText)return;"
+                    + "if(wantL&&rowText.indexOf(wantL)<0)return;"
+                    + "if(wantB&&rowText.indexOf(wantB)<0)return;"
+                    + "var rowBtn=row.querySelector('button');if(!rowBtn)return;"
+                    + "if(tryClick(rowBtn,container,wantL,wantB,2))clicked=true;});"
                     + "if(wantL){forEachButton(container,container,function(btn){if(clicked)return;"
                     + "if(tryClick(btn,container,wantL,wantB,1))clicked=true;});}"
                     + "if(!clicked&&wantB){forEachButton(container,container,function(btn){if(clicked)return;"
                     + "if(tryClick(btn,container,wantL,wantB,2))clicked=true;});}"
                     + "return JSON.stringify({ok:clicked});})()";
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
+    private static String buildClickButtonBySelectorScript(String cssSelector) {
+        try {
+            String selectorJson = MAPPER.writeValueAsString(cssSelector == null ? "" : cssSelector);
+            return "(function(){var selector="
+                    + selectorJson
+                    + ";var btn=document.querySelector(selector);"
+                    + "if(!btn){return JSON.stringify({ok:false});}"
+                    + "try{btn.scrollIntoView({block:'center',inline:'nearest'});btn.click();return JSON.stringify({ok:true});}"
+                    + "catch(e){return JSON.stringify({ok:false});}})()";
         } catch (JsonProcessingException e) {
             throw new IllegalStateException(e);
         }
@@ -234,5 +269,32 @@ public final class ShopListCdpReader {
         }
         Object v = ro.getValue();
         return v == null ? "" : String.valueOf(v);
+    }
+
+    public static int fetchStockCount(String line) {
+        if (line == null || line.isEmpty()) {
+            return 0;
+        }
+
+        int xIndex = line.indexOf('X');
+        if (xIndex < 0 || xIndex + 1 >= line.length()) {
+            return 0;
+        }
+
+        int start = xIndex + 1;
+        while (start < line.length() && Character.isWhitespace(line.charAt(start))) {
+            start++;
+        }
+
+        int end = start;
+        while (end < line.length() && Character.isDigit(line.charAt(end))) {
+            end++;
+        }
+
+        if (start == end) {
+            return 0;
+        }
+
+        return Integer.parseInt(line.substring(start, end));
     }
 }
