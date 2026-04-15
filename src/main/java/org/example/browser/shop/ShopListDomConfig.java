@@ -18,9 +18,6 @@ public final class ShopListDomConfig {
     public static final String[] DEFAULT_SHOP_LIST_SELECTORS = {
         "#App > div > div.GameScreen.css-u59uz2 > div:nth-child(3) > div > div > div.css-brvep9 > div > "
                 + "div:nth-child(1) > div > button"
-        // "main",
-        // "[class*='shop']",
-        // "[class*='Shop']",
     };
 
     /**
