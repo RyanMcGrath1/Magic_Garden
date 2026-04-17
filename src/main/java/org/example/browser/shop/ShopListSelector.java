@@ -41,7 +41,7 @@ public final class ShopListSelector {
                             System.out.println("CDP: stockCount is 0; skipping purchases for " + item.value());
                             break;
                         }
-
+                        boolean success = false;
                         int purchasedCount = 0;
                         for (int i = 0; i < stockCount; i++) {
                             boolean clicked = false;

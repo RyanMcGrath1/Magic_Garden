@@ -1,34 +1,106 @@
 # Magic Garden
 
-## Chrome remote debugging (required for shop list)
+Automation helper for the browser game Magic Garden.  
+The app focuses the game window, opens the in-game shop, reads shop entries from the live tab through Chrome DevTools Protocol (CDP), and attempts purchases for configured items.
 
-The app reads the live page via **Chrome DevTools Protocol (CDP)** on port **9222**. Java connects to the **same** Chrome tab that has the game loaded—it does not re-fetch the URL over HTTP.
+## Requirements
 
-### Launch Chrome with debugging
+- Windows (current automation flow is Windows-only; macOS is not implemented yet)
+- Java 25 (`pom.xml` uses `maven.compiler.release=25`)
+- Maven 3.9+
+- Google Chrome
 
-1. Run **`chrome-with-debugging.bat`** from this project directory (uses a dedicated profile so a new Chrome process actually listens on **9222**).
-2. In **that** Chrome window, open the game:
-   - **`https://magicgarden.gg/r/QP9B`**  
-   (same URL as `MagicGardenOpener.MAGIC_GARDEN_URL` in code.)
-3. Optional: verify **`http://127.0.0.1:9222/json`** — you should see a **`page`** target with `"url"` containing **`magicgarden`**.
-4. Run the Java app.
+## What this project does
 
-### Why a separate profile
+1. Checks OS compatibility.
+2. Activates the Chrome window that has Magic Garden open.
+3. Sends keyboard input (`Shift+1`, then `Space`) to open the shop.
+4. Reads shop rows from the active tab via CDP (`http://127.0.0.1:9222`).
+5. Matches rows against `ItemsToBuy` and clicks configured buttons/selectors.
 
-If Chrome is already running, a second `chrome.exe` launch often **joins** that process and **ignores** `--remote-debugging-port`, so nothing listens on **9222**. The batch file passes `--user-data-dir` so Windows starts a **dedicated** Chrome instance. You can keep normal Chrome open; use the window opened by the batch file for Magic Garden.
+## Quick Start
 
-### Chrome 111+ WebSocket 403
+### 1) Launch Chrome in CDP mode
 
-The batch file adds **`--remote-allow-origins=*`** so the Java CDP client can open the WebSocket. If you start Chrome manually, include that flag too.
+Run:
 
-## Shop list modes (`ShopListDomConfig`)
+```bat
+chrome-with-debugging.bat
+```
 
-- **Keywords non-empty:** Injected JavaScript scrolls the document, finds elements whose text contains each keyword, walks up to a **`div`** / **`section`**, and returns **`outerHTML`** snippets as JSON (parsed in Java with Jackson).
-- **Keywords empty:** Scrolls a list container chosen from **`DEFAULT_SHOP_LIST_SELECTORS`** and collects visible **button** / **link** text (JSON from the page).
+This script starts a dedicated Chrome profile with:
 
-Tune **`SHOP_KEYWORDS`**, **`ANCESTOR_DIV_MAX_HOPS`**, and **`MAX_ELEMENTS_PER_KEYWORD_PER_STEP`** in `ShopListDomConfig` as needed.
+- `--remote-debugging-port=9222`
+- `--remote-debugging-address=127.0.0.1`
+- `--remote-allow-origins=*`
+- `--user-data-dir=.chrome-debug-profile`
+
+Then open the game in that window:
+
+- `https://magicgarden.gg/r/QP9B`
+
+Optional check:
+
+- Open `http://127.0.0.1:9222/json`
+- Confirm a `page` target exists whose URL includes `magicgarden`
+
+### 2) Run the automation
+
+From the project root:
+
+```bash
+mvn clean compile exec:java -Dexec.mainClass=org.example.Main
+```
+
+If your Maven setup does not have the exec plugin available, run from your IDE using `org.example.Main`.
+
+## Configuration
+
+### Items to buy
+
+Edit `src/main/java/org/example/browser/util/ItemsToBuy.java`:
+
+- Add/remove enum constants for target items.
+- `value` is the text used for matching shop lines.
+- `rowButtonSelector` and `followUpButtonSelector` are used for click automation.
+
+Current defaults include:
+
+- `CARROT` (`Carrot Seed`)
+- `CABBAGE` (`Cabbage Seed`)
+
+### Shop DOM extraction and selector tuning
+
+Edit `src/main/java/org/example/browser/shop/ShopListDomConfig.java`:
+
+- `DEFAULT_SHOP_LIST_SELECTORS` controls where shop list scanning begins.
+- `CLOSE_POPUP_SELECTOR` controls popup close targeting.
+- `ANCESTOR_DIV_MAX_HOPS` and `MAX_ELEMENTS_PER_KEYWORD_PER_STEP` tune extraction limits.
+
+## Important behavior notes
+
+- The app reads the already-open browser tab via CDP; it does not fetch the game page directly over HTTP.
+- Use the Chrome window started by `chrome-with-debugging.bat`; normal Chrome windows may not expose port `9222`.
+- A dedicated profile is intentional so Chrome does not attach to an already-running process that ignores debugging flags.
+
+## Main classes
+
+- `org.example.Main` - Entry point.
+- `org.example.scripts.Scripts` - High-level runtime flow and keyboard automation.
+- `org.example.MagicGardenOpener` - Finds/focuses/sizes the Magic Garden Chrome window.
+- `org.example.browser.shop.ShopListCdpReader` - CDP JavaScript evaluation for reading/clicking shop entries.
+- `org.example.browser.shop.ShopListSelector` - Item matching and interaction flow.
+- `org.example.browser.ChromeDebugPreflight` - CDP endpoint reachability diagnostics.
 
 ## Troubleshooting
 
-- **`Could not read shop list via CDP`:** Confirm **`http://127.0.0.1:9222/json`** loads and lists a **page** with a **magicgarden** URL. Re-run the batch file if the port is closed.
-- **No Magic Garden tab:** Open **`MAGIC_GARDEN_URL`** only in the debugging Chrome window.
+- **`Could not read shop list via CDP`**
+  - Verify `http://127.0.0.1:9222/json` responds.
+  - Re-run `chrome-with-debugging.bat`.
+  - Ensure the game is open in the same debugging Chrome window.
+
+- **Magic Garden tab not found**
+  - Open `https://magicgarden.gg/r/QP9B` in Chrome, load the game UI fully, then run again.
+
+- **No automation on macOS/Linux**
+  - Expected today. Current window-activation flow uses Win32 APIs via JNA.
