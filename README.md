@@ -126,4 +126,3 @@ Long sleeps use `org.example.input.IdleKeepAlive#sleepWithMouseJiggle`: the curs
 
 - **No automation on macOS/Linux**
   - Expected today. Current window-activation flow uses Win32 APIs via JNA.
-
