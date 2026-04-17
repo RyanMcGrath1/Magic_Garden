@@ -1,5 +1,6 @@
 package org.example;
 
+import org.example.browser.util.EggItemsToBuy;
 import org.example.browser.util.SeedItemsToBuy;
 import org.example.scripts.MagicGardenAutomation;
 
@@ -14,6 +15,6 @@ public class Main {
     The purpose of this enum is to make it easy to add new items to the list of items to buy.
 */
     MagicGardenAutomation automation = MagicGardenAutomation.getInstance();
-    automation.begin(SeedItemsToBuy.values());
+    automation.begin(SeedItemsToBuy.values(), EggItemsToBuy.values());
     }
 }
