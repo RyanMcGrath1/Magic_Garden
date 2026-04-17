@@ -19,7 +19,7 @@ It focuses the game window in Chrome, opens the in-game shop, reads shop rows fr
 2. Activates the Chrome window that has Magic Garden open (or logs a warning and retries on the next cycle if the window is missing).
 3. Sends keyboard input (`Shift+1`, then `Space`) to open the shop.
 4. Reads shop rows from the active tab via CDP (`http://127.0.0.1:9222`).
-5. Matches rows against `ItemsToBuy` and clicks the configured row / confirm selectors.
+5. Matches rows against `SeedItemsToBuy` and clicks the configured row / confirm selectors.
 6. **Repeats**: after each full pass, waits **5 minutes**, then runs the flow again until you stop the process.
 7. During long waits (5-minute gap, 12-second cooldowns between shop rows, and the short “Chrome ready” pause), **nudges the mouse slightly** to reduce idle disconnects (see `IdleKeepAlive`).
 8. Writes **structured logs** to the console via SLF4J (`mg.run` for the main loop, `mg.shop` for purchases).
@@ -70,7 +70,7 @@ If your Maven setup does not have the exec plugin available, run from your IDE u
 
 ### Items to buy
 
-Edit `src/main/java/org/example/browser/util/ItemsToBuy.java`:
+Edit `src/main/java/org/example/browser/util/SeedItemsToBuy.java`:
 
 - Add/remove enum constants for target items.
 - `value` is the text used for matching shop lines.

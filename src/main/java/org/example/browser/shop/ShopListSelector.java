@@ -3,7 +3,7 @@ package org.example.browser.shop;
 import com.github.kklisura.cdt.services.exceptions.ChromeServiceException;
 import java.util.List;
 import org.example.MagicGardenOpener;
-import org.example.browser.util.ItemsToBuy;
+import org.example.browser.util.SeedItemsToBuy;
 import org.example.input.IdleKeepAlive;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,10 +21,10 @@ public final class ShopListSelector {
     }
 
     /**
-     * For each shop line, if it matches an {@link ItemsToBuy} and is in stock, clicks that row's button via the shared
+     * For each shop line, if it matches an {@link SeedItemsToBuy} and is in stock, clicks that row's button via the shared
      * CDP session (same connection as list reads — no new socket per click).
      */
-    public static void beginInterfacingWithGame(List<String> shopList, ItemsToBuy[] itemsToBuy) {
+    public static void beginInterfacingWithGame(List<String> shopList, SeedItemsToBuy[] itemsToBuy) {
         if (shopList == null || itemsToBuy == null) {
             return;
         }
@@ -32,7 +32,7 @@ public final class ShopListSelector {
         // Walk every extracted shop line; for each, see if it is a row we want to buy from.
         for (int lineIndex = 0; lineIndex < shopList.size(); lineIndex++) {
             String line = shopList.get(lineIndex);
-            for (ItemsToBuy item : itemsToBuy) {
+            for (SeedItemsToBuy item : itemsToBuy) {
                 // Text match + skip lines explicitly marked unavailable in the string.
                 if (item.containedIn(line) && !line.contains("NO STOCK")) {
                     log.info("Row | {} ({}) | {}", item.name(), item.value(), line);

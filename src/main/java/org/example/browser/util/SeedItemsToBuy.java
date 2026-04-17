@@ -4,7 +4,7 @@ package org.example.browser.util;
  * Shop item labels to buy — each constant is the substring/text that appears on the page or in extracted shop lines.
  * Add one enum constant per item; match the in-game button or row text.
  */
-public enum ItemsToBuy {
+public enum SeedItemsToBuy {
 
     /* 
     This enum is used to determine which items will actualy be bought.
@@ -55,7 +55,7 @@ public enum ItemsToBuy {
     private final String rowButtonSelector;
     private final String followUpButtonSelector;
 
-    ItemsToBuy(String value, String rowButtonSelector, String followUpButtonSelector) {
+    SeedItemsToBuy(String value, String rowButtonSelector, String followUpButtonSelector) {
         this.value = value;
         this.rowButtonSelector = rowButtonSelector;
         this.followUpButtonSelector = followUpButtonSelector;
