@@ -6,6 +6,7 @@ import java.awt.event.KeyEvent;
 import java.util.List;
 import org.example.MagicGardenOpener;
 import org.example.OsInfo;
+import org.example.input.IdleKeepAlive;
 import org.example.browser.shop.ShopListSelector;
 import org.example.browser.shop.ShopListTextExtractor;
 import org.example.browser.util.ItemsToBuy;
@@ -69,8 +70,8 @@ public class MagicGardenAutomation {
                 while (true) {
                     runWindowsShopCycle(itemsToBuy, cycle);
                     cycle++;
-                    log.info("Sleep | Next shop pass in {} min", SHOP_CYCLE_INTERVAL_MS / 60_000L);
-                    Thread.sleep(SHOP_CYCLE_INTERVAL_MS);
+                    log.info("Sleep | Next shop pass in {} min (mouse nudges while waiting)", SHOP_CYCLE_INTERVAL_MS / 60_000L);
+                    IdleKeepAlive.sleepWithMouseJiggle(SHOP_CYCLE_INTERVAL_MS);
                 }
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
@@ -90,8 +91,8 @@ public class MagicGardenAutomation {
                     MagicGardenOpener.MAGIC_GARDEN_URL);
             return;
         }
-        log.info("Cycle {} | Chrome ready · waiting {}s", cycleNumber, CHROME_READY_PAUSE_MS / 1000);
-        Thread.sleep(CHROME_READY_PAUSE_MS);
+        log.info("Cycle {} | Chrome ready · waiting {}s (mouse nudges)", cycleNumber, CHROME_READY_PAUSE_MS / 1000);
+        IdleKeepAlive.sleepWithMouseJiggle(CHROME_READY_PAUSE_MS);
         clickShopButton(cycleNumber);
         Thread.sleep(AFTER_SHOP_KEY_MS);
         try {
