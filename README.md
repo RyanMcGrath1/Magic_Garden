@@ -3,6 +3,9 @@
 Automation helper for the browser game Magic Garden.  
 The app focuses the game window, opens the in-game shop, reads shop entries from the live tab through Chrome DevTools Protocol (CDP), and attempts purchases for configured items.
 
+<img width="1024" height="576" alt="image" src="https://github.com/user-attachments/assets/16d67c3b-8989-4b65-b066-261e5ed5646c" />
+
+
 ## Requirements
 
 - Windows (current automation flow is Windows-only; macOS is not implemented yet)
