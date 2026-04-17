@@ -9,6 +9,7 @@ import org.example.OsInfo;
 import org.example.input.IdleKeepAlive;
 import org.example.browser.shop.ShopListSelector;
 import org.example.browser.shop.ShopListTextExtractor;
+import org.example.browser.util.EggItemsToBuy;
 import org.example.browser.util.SeedItemsToBuy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -55,8 +56,7 @@ public class MagicGardenAutomation {
      * Runs the Windows shop automation in a loop: each cycle focuses Chrome, opens the shop, reads the list via CDP,
      * and attempts purchases. Waits {@link #SHOP_CYCLE_INTERVAL_MS} after each cycle before starting the next.
      */
-    public void begin(SeedItemsToBuy[] itemsToBuy) {
-        navigateToStartingPosition();
+    public void begin(SeedItemsToBuy[] itemsToBuy, EggItemsToBuy[] eggItemsToBuy) {
         int os = checkForOperatingSystem();
         if (os == 1) {
             log.info(
@@ -69,7 +69,7 @@ public class MagicGardenAutomation {
             try {
                 int cycle = 1;
                 while (true) {
-                    runWindowsShopCycle(itemsToBuy, cycle);
+                    runWindowsShopCycle(itemsToBuy, eggItemsToBuy, cycle);
                     cycle++;
                     log.info("Sleep | Next shop pass in {} min (mouse nudges while waiting)", SHOP_CYCLE_INTERVAL_MS / 60_000L);
                     IdleKeepAlive.sleepWithMouseJiggle(SHOP_CYCLE_INTERVAL_MS);
@@ -83,7 +83,8 @@ public class MagicGardenAutomation {
         }
     }
 
-    private void runWindowsShopCycle(SeedItemsToBuy[] itemsToBuy, int cycleNumber) throws InterruptedException {
+    private void runWindowsShopCycle(SeedItemsToBuy[] itemsToBuy, EggItemsToBuy[] eggItemsToBuy, 
+        int cycleNumber) throws InterruptedException {
         log.info("Cycle {} | --- start ---", cycleNumber);
         if (!magicGardenOpener.bringChromeToFront()) {
             log.warn(
@@ -100,7 +101,7 @@ public class MagicGardenAutomation {
             List<String> shopLines = ShopListTextExtractor.readScrollableListDefaultPort();
             log.info("Cycle {} | CDP shop lines: {} — purchasing", cycleNumber, shopLines.size());
             ShopListSelector.beginInterfacingWithGame(shopLines, itemsToBuy);
-
+            // ShopListSelector.beginInterfacingWithGame(shopLines, eggItemsToBuy);
         } catch (Exception ex) {
             log.error("Cycle {} | CDP shop list read failed", cycleNumber, ex);
         }
@@ -120,13 +121,4 @@ public class MagicGardenAutomation {
         robot.keyRelease(keyCode);
     }
 
-    private void navigateToStartingPosition() {
-        log.info("Navigating to starting position...");
-        robot.keyPress(KeyEvent.VK_W);
-        robot.keyRelease(KeyEvent.VK_W);
-        robot.keyPress(KeyEvent.VK_A);
-        robot.keyRelease(KeyEvent.VK_A);
-        robot.keyPress(KeyEvent.VK_S);
-        robot.keyRelease(KeyEvent.VK_S);
-    }
 }
