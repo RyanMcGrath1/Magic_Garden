@@ -89,7 +89,7 @@ Edit `src/main/java/org/example/browser/shop/ShopListDomConfig.java`:
 ## Main classes
 
 - `org.example.Main` - Entry point.
-- `org.example.scripts.Scripts` - High-level runtime flow and keyboard automation.
+- `org.example.scripts.MagicGardenAutomation` - High-level runtime flow and keyboard automation.
 - `org.example.MagicGardenOpener` - Finds/focuses/sizes the Magic Garden Chrome window.
 - `org.example.browser.shop.ShopListCdpReader` - CDP JavaScript evaluation for reading/clicking shop entries.
 - `org.example.browser.shop.ShopListSelector` - Item matching and interaction flow.
