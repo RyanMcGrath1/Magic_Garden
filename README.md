@@ -109,7 +109,3 @@ Edit `src/main/java/org/example/browser/shop/ShopListDomConfig.java`:
 
 - **No automation on macOS/Linux**
   - Expected today. Current window-activation flow uses Win32 APIs via JNA.
-
-## Architectural Overview
-<img width="1930" height="1000" alt="image" src="https://github.com/user-attachments/assets/99659dae-d1d3-4dc3-9ae6-57151e36daf9" />
-
