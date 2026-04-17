@@ -11,6 +11,8 @@ import org.example.browser.shop.ShopListTextExtractor;
 import org.example.browser.util.ItemsToBuy;
 
 public class MagicGardenAutomation {
+    private static final long SHOP_CYCLE_INTERVAL_MS = 5 * 60 * 1000L;
+
     private static MagicGardenAutomation instance;
 
     private Robot robot;
@@ -42,6 +44,10 @@ public class MagicGardenAutomation {
         throw new IllegalStateException("unreachable");
     }
 
+    /**
+     * Runs the Windows shop automation in a loop: each cycle focuses Chrome, opens the shop, reads the list via CDP,
+     * and attempts purchases. Waits {@link #SHOP_CYCLE_INTERVAL_MS} after each cycle before starting the next.
+     */
     public void begin(ItemsToBuy[] itemsToBuy) {
         int os = checkForOperatingSystem();
         if (os == 1) {
@@ -50,36 +56,50 @@ public class MagicGardenAutomation {
                     + " (see chrome-with-debugging.bat and README).");
             System.out.println("In that Chrome window, open the game and leave the tab active:");
             System.out.println("  " + MagicGardenOpener.MAGIC_GARDEN_URL);
-            System.out.println("Beginning startup sequence — locating the Chrome window...");
+            System.out.println(
+                    "Repeating shop automation every "
+                            + (SHOP_CYCLE_INTERVAL_MS / 60_000)
+                            + " minutes after each cycle. Press Ctrl+C in this console to stop.");
             try {
-                if (!magicGardenOpener.bringChromeToFront()) {
-                    System.err.println("ERROR: Magic Garden was not found in Chrome.");
-                    System.err.println("Open this URL in Chrome, load the game, then run this program again:");
-                    System.err.println("  " + MagicGardenOpener.MAGIC_GARDEN_URL);
-                    System.exit(1);
-                    return;
+                int cycle = 1;
+                while (true) {
+                    runWindowsShopCycle(itemsToBuy, cycle);
+                    cycle++;
+                    System.out.println(
+                            "Next shop run in "
+                                    + (SHOP_CYCLE_INTERVAL_MS / 60_000)
+                                    + " minutes... (Ctrl+C to stop)");
+                    Thread.sleep(SHOP_CYCLE_INTERVAL_MS);
                 }
-                System.out.println("Google Chrome is ready. Waiting 5 seconds before continuing...");
-                Thread.sleep(5000);
-                clickShopButton();
-                Thread.sleep(1500);
-                try {
-                    List<String> shopLines = ShopListTextExtractor.readScrollableListDefaultPort();
-                    System.out.println("Shop list (size: " + shopLines.size() + ") - Beginning interfacing with game...");
-                    ShopListSelector.beginInterfacingWithGame(shopLines, itemsToBuy);
-
-                } catch (Exception ex) {
-                    System.err.println("Could not read shop list via CDP: " + ex.getMessage());
-                    ex.printStackTrace(System.err);
-                }
-            } catch (Exception e) {
-                if (e instanceof InterruptedException) {
-                    Thread.currentThread().interrupt();
-                }
-                throw new RuntimeException(e);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                System.out.println("Shop automation interrupted; stopping.");
             }
         } else if (os == 2) {
             // TODO: Add macOS support
+        }
+    }
+
+    private void runWindowsShopCycle(ItemsToBuy[] itemsToBuy, int cycleNumber) throws InterruptedException {
+        System.out.println("--- Shop cycle " + cycleNumber + " ---");
+        if (!magicGardenOpener.bringChromeToFront()) {
+            System.err.println("ERROR: Magic Garden was not found in Chrome.");
+            System.err.println("Open this URL in Chrome, load the game; the next cycle will retry:");
+            System.err.println("  " + MagicGardenOpener.MAGIC_GARDEN_URL);
+            return;
+        }
+        System.out.println("Google Chrome is ready. Waiting 5 seconds before continuing...");
+        Thread.sleep(5000);
+        clickShopButton();
+        Thread.sleep(1500);
+        try {
+            List<String> shopLines = ShopListTextExtractor.readScrollableListDefaultPort();
+            System.out.println("Shop list (size: " + shopLines.size() + ") - Beginning interfacing with game...");
+            ShopListSelector.beginInterfacingWithGame(shopLines, itemsToBuy);
+
+        } catch (Exception ex) {
+            System.err.println("Could not read shop list via CDP: " + ex.getMessage());
+            ex.printStackTrace(System.err);
         }
     }
 

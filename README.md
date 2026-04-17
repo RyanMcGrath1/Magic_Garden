@@ -57,6 +57,8 @@ mvn clean compile exec:java -Dexec.mainClass=org.example.Main
 
 If your Maven setup does not have the exec plugin available, run from your IDE using `org.example.Main`.
 
+The automation **runs in a loop**: after each shop pass (including if CDP read fails), it waits **5 minutes**, then focuses Chrome and runs the shop flow again. Stop the process with **Ctrl+C** in the terminal (or your IDE’s stop button).
+
 ## Configuration
 
 ### Items to buy
@@ -89,7 +91,7 @@ Edit `src/main/java/org/example/browser/shop/ShopListDomConfig.java`:
 ## Main classes
 
 - `org.example.Main` - Entry point.
-- `org.example.scripts.MagicGardenAutomation` - High-level runtime flow and keyboard automation.
+- `org.example.scripts.MagicGardenAutomation` - High-level runtime flow, keyboard automation, and 5-minute repeating shop cycle.
 - `org.example.MagicGardenOpener` - Finds/focuses/sizes the Magic Garden Chrome window.
 - `org.example.browser.shop.ShopListCdpReader` - CDP JavaScript evaluation for reading/clicking shop entries.
 - `org.example.browser.shop.ShopListSelector` - Item matching and interaction flow.
