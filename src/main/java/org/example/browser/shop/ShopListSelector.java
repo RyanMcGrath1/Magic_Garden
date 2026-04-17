@@ -4,6 +4,7 @@ import com.github.kklisura.cdt.services.exceptions.ChromeServiceException;
 import java.util.List;
 import org.example.MagicGardenOpener;
 import org.example.browser.util.ItemsToBuy;
+import org.example.input.IdleKeepAlive;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -115,9 +116,9 @@ public final class ShopListSelector {
                                 // Cooldown between buys; skip after the last one so we do not sleep unnecessarily.
                                 if (i < stockCount - 1) {
                                     log.info(
-                                            "Wait | {}s · next unit same item",
+                                            "Wait | {}s · next unit same item (mouse nudges)",
                                             BETWEEN_SHOP_ROWS_MS / 1000);
-                                    Thread.sleep(BETWEEN_SHOP_ROWS_MS);
+                                    IdleKeepAlive.sleepWithMouseJiggle(BETWEEN_SHOP_ROWS_MS);
                                 }
                             }
 
@@ -133,9 +134,9 @@ public final class ShopListSelector {
                     if (lineIndex < shopList.size() - 1) {
                         try {
                             log.info(
-                                    "Wait | {}s · next shop row",
+                                    "Wait | {}s · next shop row (mouse nudges)",
                                     BETWEEN_SHOP_ROWS_MS / 1000);
-                            Thread.sleep(BETWEEN_SHOP_ROWS_MS);
+                            IdleKeepAlive.sleepWithMouseJiggle(BETWEEN_SHOP_ROWS_MS);
                         } catch (InterruptedException ie) {
                             Thread.currentThread().interrupt();
                         }
