@@ -4,8 +4,12 @@ import com.github.kklisura.cdt.services.exceptions.ChromeServiceException;
 import java.util.List;
 import org.example.MagicGardenOpener;
 import org.example.browser.util.ItemsToBuy;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public final class ShopListSelector {
+    private static final Logger log = LoggerFactory.getLogger("mg.shop");
+
     private static final int ROW_CLICK_RETRIES = 5;
     private static final int FOLLOW_UP_CLICK_RETRIES = 10;
     private static final long RETRY_DELAY_MS = 150L;
@@ -30,7 +34,7 @@ public final class ShopListSelector {
             for (ItemsToBuy item : itemsToBuy) {
                 // Text match + skip lines explicitly marked unavailable in the string.
                 if (item.containedIn(line) && !line.contains("NO STOCK")) {
-                    System.out.println("Matched " + item.name() + " (" + item.value() + "): " + line);
+                    log.info("Row | {} ({}) | {}", item.name(), item.value(), line);
                     // Parse "… x N" style stock from the line text (same snapshot as the list read).
                     int stockCount = ShopListCdpReader.fetchStockCount(line);
                     try {
@@ -41,117 +45,96 @@ public final class ShopListSelector {
                                 || rowButtonSelector.isBlank()
                                 || followUpButtonSelector == null
                                 || followUpButtonSelector.isBlank()) {
-                            System.out.println("CDP: selectors not configured for " + item.value() + "; skipping.");
+                            log.warn("Skip | {} | selectors not configured", item.value());
                         } else if (stockCount <= 0) {
-                            System.out.println("CDP: stockCount is 0; skipping purchases for " + item.value());
+                            log.info("Skip | {} | stock 0 in line text", item.value());
                         } else {
-                        int purchasedCount = 0;
-                        // Aim for up to stockCount purchases; stop early if a round cannot complete (e.g. out of stock).
-                        for (int i = 0; i < stockCount; i++) {
-                            boolean roundSucceeded = false;
-                            // Retry the shop row click until it succeeds or we give up (DOM timing / focus).
-                            for (int r = 0; r < ROW_CLICK_RETRIES && !roundSucceeded; r++) {
-                                boolean clicked =
-                                        ShopListCdpReader.clickButtonBySelectorSharedSession(
-                                                MagicGardenOpener.CHROME_REMOTE_DEBUGGING_PORT,
-                                                rowButtonSelector);
-                                if (!clicked) {
-                                    if (r == ROW_CLICK_RETRIES - 1) {
-                                        System.out.println(
-                                                "CDP: row button not found/clickable after "
-                                                        + ROW_CLICK_RETRIES
-                                                        + " tries for purchase "
-                                                        + (i + 1)
-                                                        + " of "
-                                                        + stockCount
-                                                        + " ("
-                                                        + item.value()
-                                                        + ")");
-                                    }
-                                    continue;
-                                }
-                                // After the row opens, the game shows a confirm (or similar); retry until it clicks.
-                                for (int r1 = 0; r1 < FOLLOW_UP_CLICK_RETRIES; r1++) {
-                                    boolean followUpClicked =
+                            int purchasedCount = 0;
+                            // Aim for up to stockCount purchases; stop early if a round cannot complete (e.g. out of stock).
+                            for (int i = 0; i < stockCount; i++) {
+                                boolean roundSucceeded = false;
+                                // Retry the shop row click until it succeeds or we give up (DOM timing / focus).
+                                for (int r = 0; r < ROW_CLICK_RETRIES && !roundSucceeded; r++) {
+                                    boolean clicked =
                                             ShopListCdpReader.clickButtonBySelectorSharedSession(
                                                     MagicGardenOpener.CHROME_REMOTE_DEBUGGING_PORT,
-                                                    followUpButtonSelector);
-                                    if (followUpClicked) {
-                                        // One successful row + follow-up = one purchase; close any popup, then exit retries.
-                                        System.out.println(
-                                                "Purchased "
-                                                        + item.value()
-                                                        + " ("
-                                                        + (purchasedCount + 1)
-                                                        + "/"
-                                                        + stockCount
-                                                        + ")");
-                                        Thread.sleep(300);
-                                        ShopListCdpReader.clickButtonBySelectorSharedSession(
-                                                MagicGardenOpener.CHROME_REMOTE_DEBUGGING_PORT,
-                                                ShopListDomConfig.CLOSE_POPUP_SELECTOR);
-                                        roundSucceeded = true;
-                                        break;
+                                                    rowButtonSelector);
+                                    if (!clicked) {
+                                        if (r == ROW_CLICK_RETRIES - 1) {
+                                            log.warn(
+                                                    "CDP | {} | row button not clickable after {} tries · purchase {}/{}",
+                                                    item.value(),
+                                                    ROW_CLICK_RETRIES,
+                                                    i + 1,
+                                                    stockCount);
+                                        }
+                                        continue;
                                     }
-                                    // Brief pause between follow-up attempts so the UI can catch up.
-                                    Thread.sleep(RETRY_DELAY_MS);
+                                    // After the row opens, the game shows a confirm (or similar); retry until it clicks.
+                                    for (int r1 = 0; r1 < FOLLOW_UP_CLICK_RETRIES; r1++) {
+                                        boolean followUpClicked =
+                                                ShopListCdpReader.clickButtonBySelectorSharedSession(
+                                                        MagicGardenOpener.CHROME_REMOTE_DEBUGGING_PORT,
+                                                        followUpButtonSelector);
+                                        if (followUpClicked) {
+                                            // One successful row + follow-up = one purchase; close any popup, then exit retries.
+                                            log.info(
+                                                    "Buy | {} · {}/{}",
+                                                    item.value(),
+                                                    purchasedCount + 1,
+                                                    stockCount);
+                                            Thread.sleep(300);
+                                            ShopListCdpReader.clickButtonBySelectorSharedSession(
+                                                    MagicGardenOpener.CHROME_REMOTE_DEBUGGING_PORT,
+                                                    ShopListDomConfig.CLOSE_POPUP_SELECTOR);
+                                            roundSucceeded = true;
+                                            break;
+                                        }
+                                        // Brief pause between follow-up attempts so the UI can catch up.
+                                        Thread.sleep(RETRY_DELAY_MS);
+                                    }
+                                    // Only log follow-up exhaustion on the last row retry to avoid spam.
+                                    if (!roundSucceeded && r == ROW_CLICK_RETRIES - 1) {
+                                        log.warn(
+                                                "CDP | {} | follow-up not clickable after retries · purchase {}/{}",
+                                                item.value(),
+                                                i + 1,
+                                                stockCount);
+                                    }
                                 }
-                                // Only log follow-up exhaustion on the last row retry to avoid spam.
-                                if (!roundSucceeded && r == ROW_CLICK_RETRIES - 1) {
-                                    System.out.println(
-                                            "CDP: follow-up button not found/clickable after retries for purchase "
-                                                    + (i + 1)
-                                                    + " of "
-                                                    + stockCount
-                                                    + " ("
-                                                    + item.value()
-                                                    + ")");
+                                // Do not keep looping on stale stockCount if this round never completed (UI / stock changed).
+                                if (!roundSucceeded) {
+                                    log.warn(
+                                            "Stop | {} | purchase {}/{} failed (out of stock or UI changed)",
+                                            item.value(),
+                                            i + 1,
+                                            stockCount);
+                                    break;
+                                }
+                                purchasedCount++;
+                                // Cooldown between buys; skip after the last one so we do not sleep unnecessarily.
+                                if (i < stockCount - 1) {
+                                    log.info(
+                                            "Wait | {}s · next unit same item",
+                                            BETWEEN_SHOP_ROWS_MS / 1000);
+                                    Thread.sleep(BETWEEN_SHOP_ROWS_MS);
                                 }
                             }
-                            // Do not keep looping on stale stockCount if this round never completed (UI / stock changed).
-                            if (!roundSucceeded) {
-                                System.out.println(
-                                        "CDP: stopping — could not complete purchase "
-                                                + (i + 1)
-                                                + "/"
-                                                + stockCount
-                                                + " for "
-                                                + item.value()
-                                                + " (likely out of stock or UI changed).");
-                                break;
-                            }
-                            purchasedCount++;
-                            // Cooldown between buys; skip after the last one so we do not sleep unnecessarily.
-                            if (i < stockCount - 1) {
-                                System.out.println(
-                                        "Waiting "
-                                                + (BETWEEN_SHOP_ROWS_MS / 1000)
-                                                + " seconds before next purchase (same item)");
-                                Thread.sleep(BETWEEN_SHOP_ROWS_MS);
-                            }
-                        }
 
-                        System.out.println(
-                                "CDP: purchased "
-                                        + purchasedCount
-                                        + "/"
-                                        + stockCount
-                                        + " for "
-                                        + item.value());
+                            log.info("Done | {} · purchased {}/{}", item.value(), purchasedCount, stockCount);
                         }
                     } catch (ChromeServiceException | InterruptedException e) {
                         if (e instanceof InterruptedException) {
                             Thread.currentThread().interrupt();
                         }
-                        System.err.println("CDP click failed: " + e.getMessage());
+                        log.error("CDP | click failed: {}", e.toString(), e);
                     }
                     // Cooldown before the next shop line / next product type (e.g. after strawberry, before aloe).
                     if (lineIndex < shopList.size() - 1) {
                         try {
-                            System.out.println(
-                                    "Waiting "
-                                            + (BETWEEN_SHOP_ROWS_MS / 1000)
-                                            + " seconds before next shop row / item...");
+                            log.info(
+                                    "Wait | {}s · next shop row",
+                                    BETWEEN_SHOP_ROWS_MS / 1000);
                             Thread.sleep(BETWEEN_SHOP_ROWS_MS);
                         } catch (InterruptedException ie) {
                             Thread.currentThread().interrupt();
