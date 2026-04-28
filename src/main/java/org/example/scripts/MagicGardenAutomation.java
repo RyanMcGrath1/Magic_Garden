@@ -44,7 +44,7 @@ public class MagicGardenAutomation {
             return 1;
         }
         if (OsInfo.isMacOs()) {
-            log.info("Preflight | macOS (shop automation not implemented)");
+            log.info("Preflight | macOS");
             return 2;
         }
         log.error("Preflight | Unsupported OS: {}", System.getProperty("os.name"));
@@ -53,38 +53,34 @@ public class MagicGardenAutomation {
     }
 
     /**
-     * Runs the Windows shop automation in a loop: each cycle focuses Chrome, opens the shop, reads the list via CDP,
-     * and attempts purchases. Waits {@link #SHOP_CYCLE_INTERVAL_MS} after each cycle before starting the next.
+     * Runs shop automation in a loop on Windows and macOS: each cycle focuses Chrome, opens the shop, reads the list
+     * via CDP, and attempts purchases. Waits {@link #SHOP_CYCLE_INTERVAL_MS} after each cycle before starting the next.
      */
     public void begin(SeedItemsToBuy[] itemsToBuy, EggItemsToBuy[] eggItemsToBuy) {
-        int os = checkForOperatingSystem();
-        if (os == 1) {
-            log.info(
-                    "Setup | Remote debugging port {} · open the game in that Chrome, tab active · {}",
-                    MagicGardenOpener.CHROME_REMOTE_DEBUGGING_PORT,
-                    MagicGardenOpener.MAGIC_GARDEN_URL);
-            log.info(
-                    "Setup | Repeating shop pass every {} min after each pass · Ctrl+C to stop",
-                    SHOP_CYCLE_INTERVAL_MS / 60_000L);
-            try {
-                int cycle = 1;
-                while (true) {
-                    runWindowsShopCycle(itemsToBuy, eggItemsToBuy, cycle);
-                    cycle++;
-                    log.info("Sleep | Next shop pass in {} min (mouse nudges while waiting)", SHOP_CYCLE_INTERVAL_MS / 60_000L);
-                    IdleKeepAlive.sleepWithMouseJiggle(SHOP_CYCLE_INTERVAL_MS);
-                }
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                log.info("Stopped | Interrupted");
+        checkForOperatingSystem();
+        log.info(
+                "Setup | Remote debugging port {} · open the game in that Chrome, tab active · {}",
+                MagicGardenOpener.CHROME_REMOTE_DEBUGGING_PORT,
+                MagicGardenOpener.MAGIC_GARDEN_URL);
+        log.info(
+                "Setup | Repeating shop pass every {} min after each pass · Ctrl+C to stop",
+                SHOP_CYCLE_INTERVAL_MS / 60_000L);
+        try {
+            int cycle = 1;
+            while (true) {
+                runShopCycle(itemsToBuy, eggItemsToBuy, cycle);
+                cycle++;
+                log.info("Sleep | Next shop pass in {} min (mouse nudges while waiting)", SHOP_CYCLE_INTERVAL_MS / 60_000L);
+                IdleKeepAlive.sleepWithMouseJiggle(SHOP_CYCLE_INTERVAL_MS);
             }
-        } else if (os == 2) {
-            // TODO: Add macOS support
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            log.info("Stopped | Interrupted");
         }
     }
 
-    private void runWindowsShopCycle(SeedItemsToBuy[] itemsToBuy, EggItemsToBuy[] eggItemsToBuy, 
-        int cycleNumber) throws InterruptedException {
+    private void runShopCycle(SeedItemsToBuy[] itemsToBuy, EggItemsToBuy[] eggItemsToBuy,
+            int cycleNumber) throws InterruptedException {
         log.info("Cycle {} | --- start ---", cycleNumber);
         if (!magicGardenOpener.bringChromeToFront()) {
             log.warn(
@@ -102,6 +98,9 @@ public class MagicGardenAutomation {
             log.info("Cycle {} | CDP shop lines: {} — purchasing", cycleNumber, shopLines.size());
             ShopListSelector.beginInterfacingWithGame(shopLines, itemsToBuy);
             // ShopListSelector.beginInterfacingWithGame(shopLines, eggItemsToBuy);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw e;
         } catch (Exception ex) {
             log.error("Cycle {} | CDP shop list read failed", cycleNumber, ex);
         }
@@ -109,11 +108,34 @@ public class MagicGardenAutomation {
 
     private void clickShopButton(int cycleNumber) {
         log.info("Cycle {} | Input | Shop hotkey Shift+1, then Space", cycleNumber);
-        robot.keyPress(KeyEvent.VK_SHIFT);
-        robot.keyPress(KeyEvent.VK_1);
-        robot.keyRelease(KeyEvent.VK_1);
-        robot.keyRelease(KeyEvent.VK_SHIFT);
+        if (OsInfo.isMacOs()) {
+            // Small gaps help CGEvent delivery; focus should already be on the page (see MagicGardenOpener Mac script).
+            robot.keyPress(KeyEvent.VK_SHIFT);
+            sleepMsIgnoringInterrupt(45);
+            robot.keyPress(KeyEvent.VK_1);
+            sleepMsIgnoringInterrupt(45);
+            robot.keyRelease(KeyEvent.VK_1);
+            sleepMsIgnoringInterrupt(45);
+            robot.keyRelease(KeyEvent.VK_SHIFT);
+            sleepMsIgnoringInterrupt(120);
+        } else {
+            robot.keyPress(KeyEvent.VK_SHIFT);
+            robot.keyPress(KeyEvent.VK_1);
+            robot.keyRelease(KeyEvent.VK_1);
+            robot.keyRelease(KeyEvent.VK_SHIFT);
+        }
         pressAndRelease(KeyEvent.VK_SPACE);
+    }
+
+    private static void sleepMsIgnoringInterrupt(long ms) {
+        if (ms <= 0) {
+            return;
+        }
+        try {
+            Thread.sleep(ms);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
     }
 
     private void pressAndRelease(int keyCode) {
