@@ -56,7 +56,11 @@ public final class IdleKeepAlive {
     }
 
     private static void jiggleMouseSmall() {
-        Point p = MouseInfo.getPointerInfo().getLocation();
+        var pointer = MouseInfo.getPointerInfo();
+        if (pointer == null) {
+            return;
+        }
+        Point p = pointer.getLocation();
         ThreadLocalRandom r = ThreadLocalRandom.current();
         int dx = r.nextInt(-JIGGLE_RADIUS_PX, JIGGLE_RADIUS_PX + 1);
         int dy = r.nextInt(-JIGGLE_RADIUS_PX, JIGGLE_RADIUS_PX + 1);
